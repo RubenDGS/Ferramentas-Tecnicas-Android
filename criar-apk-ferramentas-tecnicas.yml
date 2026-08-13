@@ -1,0 +1,945 @@
+name: Criar APK Ferramentas Técnicas
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Obter repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Configurar Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Criar projeto Android
+        shell: bash
+        run: |
+          cat > settings.gradle <<'EOF'
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          rootProject.name = "FerramentasTecnicas"
+          include(":app")
+          EOF
+
+          cat > build.gradle <<'EOF'
+          plugins {
+              id 'com.android.application' version '8.7.3' apply false
+          }
+          EOF
+
+          cat > gradle.properties <<'EOF'
+          org.gradle.jvmargs=-Xmx3072m -Dfile.encoding=UTF-8
+          android.useAndroidX=true
+          android.nonTransitiveRClass=true
+          EOF
+
+          mkdir -p app
+          cat > app/build.gradle <<'EOF'
+          plugins {
+              id 'com.android.application'
+          }
+
+          android {
+              namespace 'pt.ferramentastecnicas'
+              compileSdk 35
+
+              defaultConfig {
+                  applicationId "pt.ferramentastecnicas"
+                  minSdk 26
+                  targetSdk 35
+                  versionCode 1
+                  versionName "1.0"
+              }
+          }
+
+          dependencies {
+              implementation 'com.google.mlkit:text-recognition:16.0.1'
+              implementation 'androidx.core:core:1.15.0'
+          }
+          EOF
+
+                    mkdir -p "$(dirname 'app/src/main/AndroidManifest.xml')"
+                    cat > 'app/src/main/AndroidManifest.xml' <<'EOF'
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+                        <uses-permission android:name="android.permission.INTERNET" />
+                        <uses-permission android:name="android.permission.CAMERA" />
+                        <uses-feature android:name="android.hardware.camera" android:required="false" />
+
+                        <application
+                            android:allowBackup="true"
+                            android:label="Ferramentas Técnicas"
+                            android:theme="@style/AppTheme"
+                            android:usesCleartextTraffic="false">
+
+                            <provider
+                                android:name="androidx.core.content.FileProvider"
+                                android:authorities="${applicationId}.fileprovider"
+                                android:exported="false"
+                                android:grantUriPermissions="true">
+                                <meta-data
+                                    android:name="android.support.FILE_PROVIDER_PATHS"
+                                    android:resource="@xml/file_paths" />
+                            </provider>
+
+                            <activity android:name=".ThermalActivity" android:screenOrientation="portrait" android:exported="false" />
+                            <activity android:name=".PTMActivity" android:screenOrientation="portrait" android:exported="false" />
+
+                            <activity
+                                android:name=".HomeActivity"
+                                android:screenOrientation="portrait"
+                                android:exported="true">
+                                <intent-filter>
+                                    <action android:name="android.intent.action.MAIN" />
+                                    <category android:name="android.intent.category.LAUNCHER" />
+                                </intent-filter>
+                            </activity>
+                        </application>
+                    </manifest>
+                    EOF
+                    mkdir -p "$(dirname 'app/src/main/res/values/styles.xml')"
+                    cat > 'app/src/main/res/values/styles.xml' <<'EOF'
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <resources>
+                        <style name="AppTheme" parent="android:style/Theme.Material.Light.NoActionBar">
+                            <item name="android:fontFamily">sans</item>
+                            <item name="android:colorAccent">#1976B9</item>
+                            <item name="android:navigationBarColor">#0F172A</item>
+                            <item name="android:statusBarColor">#334B59</item>
+                            <item name="android:windowLightStatusBar">false</item>
+                        </style>
+                    </resources>
+                    EOF
+                    mkdir -p "$(dirname 'app/src/main/res/xml/file_paths.xml')"
+                    cat > 'app/src/main/res/xml/file_paths.xml' <<'EOF'
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <paths xmlns:android="http://schemas.android.com/apk/res/android">
+                        <cache-path name="camera" path="camera/" />
+                    </paths>
+                    EOF
+                    mkdir -p "$(dirname 'app/src/main/java/pt/ferramentastecnicas/HomeActivity.java')"
+                    cat > 'app/src/main/java/pt/ferramentastecnicas/HomeActivity.java' <<'EOF'
+                    package pt.ferramentastecnicas;
+
+                    import android.app.Activity;
+                    import android.content.Intent;
+                    import android.graphics.Color;
+                    import android.os.Bundle;
+                    import android.view.Gravity;
+                    import android.widget.Button;
+                    import android.widget.LinearLayout;
+                    import android.widget.Space;
+                    import android.widget.TextView;
+
+                    public class HomeActivity extends Activity {
+                        @Override
+                        protected void onCreate(Bundle savedInstanceState) {
+                            super.onCreate(savedInstanceState);
+
+                            LinearLayout root = new LinearLayout(this);
+                            root.setOrientation(LinearLayout.VERTICAL);
+                            root.setGravity(Gravity.CENTER_HORIZONTAL);
+                            root.setPadding(34, 55, 34, 55);
+                            root.setBackgroundColor(Color.rgb(238, 242, 245));
+
+                            TextView title = new TextView(this);
+                            title.setText("⚡ Ferramentas Técnicas");
+                            title.setTextSize(28);
+                            title.setTextColor(Color.rgb(36, 50, 58));
+                            title.setGravity(Gravity.CENTER);
+                            title.setPadding(0, 10, 0, 10);
+                            root.addView(title);
+
+                            TextView sub = new TextView(this);
+                            sub.setText("Escolhe a ferramenta que queres utilizar");
+                            sub.setTextSize(15);
+                            sub.setTextColor(Color.rgb(90, 108, 118));
+                            sub.setGravity(Gravity.CENTER);
+                            sub.setPadding(0, 0, 0, 36);
+                            root.addView(sub);
+
+                            Button thermal = button("🌡️  Calibração Imagem Térmica");
+                            thermal.setOnClickListener(v ->
+                                startActivity(new Intent(this, ThermalActivity.class))
+                            );
+                            root.addView(thermal);
+
+                            Space sp = new Space(this);
+                            sp.setLayoutParams(new LinearLayout.LayoutParams(
+                                    LinearLayout.LayoutParams.MATCH_PARENT, 24));
+                            root.addView(sp);
+
+                            Button ptm = button("⚡  PTM Travessias");
+                            ptm.setOnClickListener(v ->
+                                startActivity(new Intent(this, PTMActivity.class))
+                            );
+                            root.addView(ptm);
+
+                            setContentView(root);
+                        }
+
+                        private Button button(String text) {
+                            Button b = new Button(this);
+                            b.setText(text);
+                            b.setTextSize(18);
+                            b.setAllCaps(false);
+                            b.setMinHeight(120);
+                            b.setTextColor(Color.WHITE);
+                            b.setBackgroundColor(Color.rgb(51, 75, 89));
+                            b.setLayoutParams(new LinearLayout.LayoutParams(
+                                    LinearLayout.LayoutParams.MATCH_PARENT,
+                                    LinearLayout.LayoutParams.WRAP_CONTENT
+                            ));
+                            return b;
+                        }
+                    }
+                    EOF
+                    mkdir -p "$(dirname 'app/src/main/java/pt/ferramentastecnicas/ThermalActivity.java')"
+                    cat > 'app/src/main/java/pt/ferramentastecnicas/ThermalActivity.java' <<'EOF'
+                    package pt.ferramentastecnicas;
+
+                    import android.app.Activity;
+                    import android.content.Intent;
+                    import android.graphics.Bitmap;
+                    import android.graphics.Color;
+                    import android.graphics.ImageDecoder;
+                    import android.net.Uri;
+                    import android.os.Bundle;
+                    import android.provider.MediaStore;
+                    import android.text.InputType;
+                    import android.view.Gravity;
+                    import android.view.View;
+                    import android.widget.Button;
+                    import android.widget.EditText;
+                    import android.widget.LinearLayout;
+                    import android.widget.ScrollView;
+                    import android.widget.TextView;
+
+                    import com.google.mlkit.vision.common.InputImage;
+                    import com.google.mlkit.vision.text.Text;
+                    import com.google.mlkit.vision.text.TextRecognition;
+                    import com.google.mlkit.vision.text.latin.TextRecognizerOptions;
+
+                    import java.text.Normalizer;
+                    import java.util.ArrayList;
+                    import java.util.Collections;
+                    import java.util.List;
+                    import java.util.Locale;
+                    import java.util.regex.Matcher;
+                    import java.util.regex.Pattern;
+
+                    public class ThermalActivity extends Activity {
+
+                        private static final int PICK_IMAGE = 1001;
+
+                        private TextView estado, dados, resultado;
+                        private EditText gradiente;
+                        private LinearLayout manualBox;
+                        private EditText mPos, mCorrente, mTiP, mTiS;
+
+                        private Integer posNominal = null;
+                        private Double correnteAT = null;
+                        private Double tiP = null;
+                        private Double tiS = null;
+
+                        @Override
+                        protected void onCreate(Bundle savedInstanceState) {
+                            super.onCreate(savedInstanceState);
+
+                            ScrollView scroll = new ScrollView(this);
+                            LinearLayout root = new LinearLayout(this);
+                            root.setOrientation(LinearLayout.VERTICAL);
+                            root.setPadding(34, 34, 34, 60);
+                            root.setBackgroundColor(Color.rgb(247,247,247));
+
+                            TextView titulo = txt("Calibração Imagem Térmica", 28, true);
+                            titulo.setGravity(Gravity.CENTER);
+                            root.addView(titulo);
+
+                            TextView subt = txt("Lê só o que entra no cálculo", 15, false);
+                            subt.setGravity(Gravity.CENTER);
+                            root.addView(subt);
+
+                            Button foto = new Button(this);
+                            foto.setText("FOTOGRAFAR / ESCOLHER CHAPA");
+                            foto.setOnClickListener(v -> escolherImagem());
+                            root.addView(foto);
+
+                            estado = txt("Ainda não foi lida nenhuma chapa.", 14, false);
+                            root.addView(estado);
+
+                            root.addView(secao("Dados da chapa"));
+                            dados = txt("Posição nominal: —\nCorrente AT ONAF: —\nTI/TC imagem térmica (AT): —", 18, true);
+                            dados.setPadding(22,22,22,22);
+                            dados.setBackgroundColor(Color.WHITE);
+                            root.addView(dados);
+
+                            Button manual = new Button(this);
+                            manual.setText("INTRODUZIR / CORRIGIR DADOS MANUALMENTE");
+                            manual.setOnClickListener(v -> alternarManual());
+                            root.addView(manual);
+
+                            manualBox = new LinearLayout(this);
+                            manualBox.setOrientation(LinearLayout.VERTICAL);
+                            manualBox.setVisibility(View.GONE);
+
+                            mPos = campo("Posição nominal");
+                            mCorrente = campo("Corrente AT ONAF (A)");
+                            mTiP = campo("TI/TC primário (A)");
+                            mTiS = campo("TI/TC secundário (A)");
+                            mTiS.setText("2");
+
+                            manualBox.addView(mPos);
+                            manualBox.addView(mCorrente);
+                            manualBox.addView(mTiP);
+                            manualBox.addView(mTiS);
+
+                            Button aplicarManual = new Button(this);
+                            aplicarManual.setText("USAR ESTES DADOS");
+                            aplicarManual.setOnClickListener(v -> aplicarManual());
+                            manualBox.addView(aplicarManual);
+
+                            root.addView(manualBox);
+
+                            root.addView(secao("Único valor a preencher"));
+                            gradiente = new EditText(this);
+                            gradiente.setHint("Gradiente pedido pelo cliente (°C)");
+                            gradiente.setTextSize(19);
+                            gradiente.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
+                            root.addView(gradiente);
+
+                            Button calc = new Button(this);
+                            calc.setText("CALCULAR");
+                            calc.setOnClickListener(v -> calcular());
+                            root.addView(calc);
+
+                            root.addView(secao("Resultado"));
+                            resultado = txt("Fotografa a chapa e introduz apenas o gradiente.", 18, true);
+                            resultado.setPadding(22,22,22,22);
+                            resultado.setBackgroundColor(Color.WHITE);
+                            root.addView(resultado);
+
+                            TextView seg = txt("SEGURANÇA: I1 > 2,00 A = NÃO INJETAR.", 14, true);
+                            seg.setPadding(0,26,0,0);
+                            root.addView(seg);
+
+                            scroll.addView(root);
+                            setContentView(scroll);
+                        }
+
+                        private void escolherImagem() {
+                            Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+                            i.setType("image/*");
+                            i.addCategory(Intent.CATEGORY_OPENABLE);
+                            startActivityForResult(i, PICK_IMAGE);
+                        }
+
+                        @Override
+                        protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+                            super.onActivityResult(requestCode, resultCode, data);
+                            if (requestCode != PICK_IMAGE || resultCode != RESULT_OK || data == null) return;
+                            Uri uri = data.getData();
+                            if (uri == null) return;
+                            estado.setText("A ler Alta Tensão e Transformador de corrente…");
+                            try {
+                                Bitmap bitmap;
+                                if (android.os.Build.VERSION.SDK_INT >= 28) {
+                                    ImageDecoder.Source source = ImageDecoder.createSource(getContentResolver(), uri);
+                                    bitmap = ImageDecoder.decodeBitmap(source);
+                                } else {
+                                    bitmap = MediaStore.Images.Media.getBitmap(getContentResolver(), uri);
+                                }
+                                InputImage image = InputImage.fromBitmap(bitmap, 0);
+                                TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+                                        .process(image)
+                                        .addOnSuccessListener(this::interpretar)
+                                        .addOnFailureListener(e -> falha("Não consegui ler a chapa."));
+                            } catch (Exception e) {
+                                falha("Não consegui abrir a fotografia.");
+                            }
+                        }
+
+                        private void interpretar(Text t) {
+                            limparDados();
+
+                            String raw = t.getText();
+                            String n = normalizar(raw);
+
+                            // Chapas já confirmadas manualmente.
+                            if (n.contains("TLSN 7349")) {
+                                preencher(6, 202.0, 219.0, 2.0, "Siemens TLSN 7349");
+                                return;
+                            }
+                            if (n.contains("TLSN 7546")) {
+                                preencher(6, 275.0, 350.0, 2.0, "Siemens TLSN 7546");
+                                return;
+                            }
+                            if (n.contains("EFACEC") && (n.contains("C-0264") || n.contains("C0264"))) {
+                                preencher(12, 303.1, 450.0, 2.0, "EFACEC C-0264");
+                                return;
+                            }
+
+                            String alta = extrairSecao(n, "ALTA TENSAO",
+                                    new String[]{"BAIXA TENSAO", "TRANSFORMADOR DE CORRENTE", "MASSAS", "ATENCAO"});
+                            String tc = extrairSecao(n, "TRANSFORMADOR DE CORRENTE",
+                                    new String[]{"ATENCAO", "MASSAS", "BAIXA TENSAO"});
+
+                            List<Integer> posicoes = extrairPosicoes(alta);
+                            if (!posicoes.isEmpty()) {
+                                Collections.sort(posicoes);
+                                int min = posicoes.get(0);
+                                int max = posicoes.get(posicoes.size()-1);
+                                int meio = (min + max) / 2;
+                                if (posicoes.contains(meio)) posNominal = meio;
+                            }
+
+                            if (posNominal != null) {
+                                correnteAT = correnteDaPosicao(alta, posNominal);
+                            }
+
+                            double[] rel = extrairTI(tc);
+                            if (rel != null) {
+                                tiP = rel[0];
+                                tiS = rel[1];
+                            }
+
+                            atualizarDados();
+
+                            if (posNominal != null && correnteAT != null && tiP != null && tiS != null) {
+                                estado.setText("✅ Leitura concluída. ONAF usado automaticamente.");
+                            } else {
+                                falha("Não consegui identificar os 3 dados com confiança. Aproxima a fotografia das tabelas Alta Tensão e Transformador de corrente.");
+                            }
+                        }
+
+                        private String normalizar(String s) {
+                            String x = Normalizer.normalize(s, Normalizer.Form.NFD)
+                                    .replaceAll("\\p{M}", "");
+                            return x.toUpperCase(Locale.ROOT)
+                                    .replace(',', '.')
+                                    .replace('–','-')
+                                    .replace('—','-');
+                        }
+
+                        private String extrairSecao(String s, String inicio, String[] finais) {
+                            int i = s.indexOf(inicio);
+                            if (i < 0) return "";
+                            int fim = s.length();
+                            for (String f : finais) {
+                                int j = s.indexOf(f, i + inicio.length());
+                                if (j >= 0 && j < fim) fim = j;
+                            }
+                            return s.substring(i, fim);
+                        }
+
+                        private List<Integer> extrairPosicoes(String s) {
+                            List<Integer> out = new ArrayList<>();
+                            Matcher m = Pattern.compile("(?m)(?:^|\\s)([1-9]|[12][0-9]|3[0-9]|40)(?:\\s|$)").matcher(s);
+                            while (m.find()) {
+                                try {
+                                    int v = Integer.parseInt(m.group(1));
+                                    if (!out.contains(v)) out.add(v);
+                                } catch(Exception ignored) {}
+                            }
+                            return out;
+                        }
+
+                        private Double correnteDaPosicao(String s, int pos) {
+                            String[] linhas = s.split("\\n");
+                            for (String linha : linhas) {
+                                String l = linha.trim();
+                                if (!l.matches(".*\\b" + pos + "\\b.*")) continue;
+
+                                // ONAF/ONAN: usamos SEMPRE o primeiro valor, ONAF.
+                                Matcher par = Pattern.compile("(\\d{2,4}(?:\\.\\d+)?)\\s*/\\s*(\\d{2,4}(?:\\.\\d+)?)\\s*A?").matcher(l);
+                                if (par.find()) {
+                                    double onaf = Double.parseDouble(par.group(1));
+                                    double onan = Double.parseDouble(par.group(2));
+                                    if (onaf >= 20 && onaf <= 5000 && onan >= 20 && onan <= 5000) return onaf;
+                                }
+                            }
+                            return null;
+                        }
+
+                        private double[] extrairTI(String s) {
+                            if (s == null || s.isEmpty()) return null;
+
+                            String[] linhas = s.split("\\n");
+                            for (String l : linhas) {
+                                String u = l.toUpperCase(Locale.ROOT);
+                                if (u.contains("1V") || u.contains("1 V") || u.contains("AT")) {
+                                    double[] r = primeiraRelacao(l);
+                                    if (r != null) return r;
+                                }
+                            }
+
+                            List<double[]> rs = new ArrayList<>();
+                            Matcher m = Pattern.compile("(\\d{2,4}(?:\\.\\d+)?)\\s*/\\s*(1|2|5)(?:\\s*A)?").matcher(s);
+                            while(m.find()) {
+                                double p = Double.parseDouble(m.group(1));
+                                double sec = Double.parseDouble(m.group(2));
+                                if (p >= 50 && p <= 5000) rs.add(new double[]{p,sec});
+                            }
+                            return rs.size() == 1 ? rs.get(0) : null;
+                        }
+
+                        private double[] primeiraRelacao(String s) {
+                            Matcher m = Pattern.compile("(\\d{2,4}(?:\\.\\d+)?)\\s*/\\s*(1|2|5)(?:\\s*A)?").matcher(s);
+                            if (m.find()) {
+                                double p = Double.parseDouble(m.group(1));
+                                double sec = Double.parseDouble(m.group(2));
+                                if (p >= 50 && p <= 5000) return new double[]{p,sec};
+                            }
+                            return null;
+                        }
+
+                        private void preencher(int pos, double corrente, double p, double s, String nome) {
+                            posNominal = pos;
+                            correnteAT = corrente;
+                            tiP = p;
+                            tiS = s;
+                            estado.setText("✅ Chapa reconhecida: " + nome);
+                            atualizarDados();
+                            preencherManualComAtuais();
+                        }
+
+                        private void limparDados() {
+                            posNominal = null;
+                            correnteAT = null;
+                            tiP = null;
+                            tiS = null;
+                            atualizarDados();
+                        }
+
+                        private void atualizarDados() {
+                            String pos = posNominal == null ? "—" : String.valueOf(posNominal);
+                            String c = correnteAT == null ? "—" : String.format(Locale.US, "%.1f A", correnteAT);
+                            String ti = (tiP == null || tiS == null) ? "—" :
+                                    String.format(Locale.US, "%.0f/%.0f A", tiP, tiS);
+                            dados.setText("Posição nominal: " + pos +
+                                    "\nCorrente AT ONAF: " + c +
+                                    "\nTI/TC imagem térmica (AT): " + ti);
+                        }
+
+                        private void alternarManual() {
+                            if (manualBox.getVisibility() == View.VISIBLE) {
+                                manualBox.setVisibility(View.GONE);
+                            } else {
+                                preencherManualComAtuais();
+                                manualBox.setVisibility(View.VISIBLE);
+                            }
+                        }
+
+                        private void preencherManualComAtuais() {
+                            if (posNominal != null) mPos.setText(String.valueOf(posNominal));
+                            if (correnteAT != null) mCorrente.setText(fmtValor(correnteAT));
+                            if (tiP != null) mTiP.setText(fmtValor(tiP));
+                            if (tiS != null) mTiS.setText(fmtValor(tiS));
+                        }
+
+                        private void aplicarManual() {
+                            try {
+                                int p = Integer.parseInt(mPos.getText().toString().trim());
+                                double c = parseCampo(mCorrente);
+                                double tp = parseCampo(mTiP);
+                                double ts = parseCampo(mTiS);
+
+                                if (p <= 0 || c <= 0 || tp <= 0 || ts <= 0) {
+                                    estado.setText("Preenche os campos manuais necessários.");
+                                    return;
+                                }
+
+                                posNominal = p;
+                                correnteAT = c;
+                                tiP = tp;
+                                tiS = ts;
+                                atualizarDados();
+                                estado.setText("✅ Dados manuais aplicados.");
+                                manualBox.setVisibility(View.GONE);
+                            } catch(Exception e) {
+                                estado.setText("Há um valor manual inválido.");
+                            }
+                        }
+
+                        private void calcular() {
+                            if (posNominal == null || correnteAT == null || tiP == null || tiS == null) {
+                                falha("Faltam dados da chapa. Não calculo sem os 3 valores.");
+                                return;
+                            }
+
+                            double g;
+                            try {
+                                String gs = gradiente.getText().toString().trim().replace(',', '.');
+                                if (gs.isEmpty()) {
+                                    falha("Introduz o gradiente pedido pelo cliente.");
+                                    return;
+                                }
+                                g = Double.parseDouble(gs);
+                            } catch(Exception e) {
+                                falha("Gradiente inválido.");
+                                return;
+                            }
+
+                            double i1 = correnteAT * tiS / tiP;
+
+                            if (i1 > 2.0) {
+                                resultado.setTextColor(Color.rgb(180,0,0));
+                                resultado.setText(String.format(Locale.US,
+                                        "⛔ NÃO INJETAR\n\nCorrente calculada: %.3f A\nLimite: 2,00 A", i1));
+                                return;
+                            }
+
+                            double[] gd = {4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46,48,50};
+                            double[] ih = {0.46,0.56,0.64,0.72,0.80,0.86,0.92,0.98,1.04,1.10,1.14,1.20,1.24,1.28,1.32,1.36,1.40,1.44,1.48,1.52,1.56,1.60,1.64,1.68};
+
+                            if (g < gd[0] || g > gd[gd.length-1]) {
+                                falha("Gradiente fora da tabela incorporada (4 a 50 °C).");
+                                return;
+                            }
+
+                            double i2 = interp(g, gd, ih);
+                            double ratio = i2 / i1;
+                            double i3 = i1 - i2;
+
+                            if (ratio <= 0 || ratio > 1.05) {
+                                falha("Relação I2/I1 incoerente. Não vou inventar Ω.");
+                                return;
+                            }
+
+                            double[] rr = {0.20,0.25,0.30,0.35,0.40,0.45,0.50,0.55,0.60,0.65,0.70,0.75,0.80,0.85,0.90,0.95,1.00};
+                            double[] oh = {0.55,0.63,0.72,0.80,0.89,0.98,1.07,1.17,1.30,1.43,1.58,1.74,1.93,2.15,2.42,2.75,3.15};
+                            double r5 = interpClamp(ratio, rr, oh);
+
+                            resultado.setTextColor(Color.rgb(0,100,40));
+                            resultado.setText(String.format(Locale.US,
+                                    "⚡ FONTE: %.3f A\n\n" +
+                                    "🌡️ IMAGEM TÉRMICA 5-5: ≈ %.2f Ω\n\n" +
+                                    "Gradiente: %.1f °C\n" +
+                                    "✅ Corrente inferior a 2,00 A",
+                                    i1, r5, g));
+                        }
+
+                        private double interp(double x, double[] xs, double[] ys) {
+                            for (int i=0; i<xs.length-1; i++) {
+                                if (x >= xs[i] && x <= xs[i+1]) {
+                                    double f = (x-xs[i])/(xs[i+1]-xs[i]);
+                                    return ys[i] + f*(ys[i+1]-ys[i]);
+                                }
+                            }
+                            return ys[ys.length-1];
+                        }
+
+                        private double interpClamp(double x, double[] xs, double[] ys) {
+                            if (x <= xs[0]) return ys[0];
+                            if (x >= xs[xs.length-1]) return ys[ys.length-1];
+                            return interp(x, xs, ys);
+                        }
+
+                        private void falha(String s) {
+                            resultado.setTextColor(Color.rgb(180,0,0));
+                            resultado.setText(s);
+                        }
+
+                        private EditText campo(String hint) {
+                            EditText e = new EditText(this);
+                            e.setHint(hint);
+                            e.setTextSize(18);
+                            e.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
+                            return e;
+                        }
+
+                        private double parseCampo(EditText e) {
+                            String s = e.getText().toString().trim().replace(',', '.');
+                            return Double.parseDouble(s);
+                        }
+
+                        private String fmtValor(double v) {
+                            if (Math.abs(v - Math.rint(v)) < 0.000001) return String.format(Locale.US, "%.0f", v);
+                            return String.format(Locale.US, "%.1f", v);
+                        }
+
+                        private TextView txt(String s, int sp, boolean bold) {
+                            TextView t = new TextView(this);
+                            t.setText(s);
+                            t.setTextSize(sp);
+                            t.setTextColor(Color.BLACK);
+                            t.setPadding(0,8,0,8);
+                            if (bold) t.setTypeface(null, android.graphics.Typeface.BOLD);
+                            return t;
+                        }
+
+                        private TextView secao(String s) {
+                            TextView t = txt(s, 20, true);
+                            t.setPadding(0,26,0,8);
+                            return t;
+                        }
+                    }
+                    EOF
+                    mkdir -p "$(dirname 'app/src/main/java/pt/ferramentastecnicas/PTMActivity.java')"
+                    cat > 'app/src/main/java/pt/ferramentastecnicas/PTMActivity.java' <<'EOF'
+                    package pt.ferramentastecnicas;
+
+                    import android.Manifest;
+                    import android.app.Activity;
+                    import android.content.ClipData;
+                    import android.content.Intent;
+                    import android.content.pm.PackageManager;
+                    import android.net.Uri;
+                    import android.os.Bundle;
+                    import android.provider.MediaStore;
+                    import android.webkit.ValueCallback;
+                    import android.webkit.WebChromeClient;
+                    import android.webkit.WebSettings;
+                    import android.webkit.WebView;
+                    import android.webkit.WebViewClient;
+                    import androidx.core.app.ActivityCompat;
+                    import androidx.core.content.ContextCompat;
+                    import androidx.core.content.FileProvider;
+                    import java.io.File;
+                    import java.io.IOException;
+
+                    public class PTMActivity extends Activity {
+                        private WebView webView;
+                        private ValueCallback<Uri[]> fileCallback;
+                        private Uri cameraUri;
+                        private static final int FILE_CHOOSER = 2001;
+                        private static final int CAMERA_PERMISSION = 2002;
+
+                        @Override
+                        protected void onCreate(Bundle savedInstanceState) {
+                            super.onCreate(savedInstanceState);
+
+                            webView = new WebView(this);
+                            setContentView(webView);
+
+                            WebSettings s = webView.getSettings();
+                            s.setJavaScriptEnabled(true);
+                            s.setDomStorageEnabled(true);
+                            s.setAllowFileAccess(true);
+                            s.setAllowContentAccess(true);
+                            s.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
+
+                            webView.setWebViewClient(new WebViewClient());
+                            webView.setWebChromeClient(new WebChromeClient() {
+                                @Override
+                                public boolean onShowFileChooser(
+                                        WebView view,
+                                        ValueCallback<Uri[]> callback,
+                                        FileChooserParams params) {
+
+                                    if (fileCallback != null) fileCallback.onReceiveValue(null);
+                                    fileCallback = callback;
+                                    abrirImagens();
+                                    return true;
+                                }
+                            });
+
+                            webView.loadUrl("file:///android_asset/ptm.html");
+                        }
+
+                        private void abrirImagens() {
+                            Intent galeria = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+                            galeria.addCategory(Intent.CATEGORY_OPENABLE);
+                            galeria.setType("image/*");
+                            galeria.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+
+                            Intent chooser = Intent.createChooser(galeria, "Fotografias das travessias");
+
+                            if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+                                    == PackageManager.PERMISSION_GRANTED) {
+                                Intent camera = criarCamera();
+                                if (camera != null) {
+                                    chooser.putExtra(Intent.EXTRA_INITIAL_INTENTS, new Intent[]{camera});
+                                }
+                            } else {
+                                ActivityCompat.requestPermissions(
+                                        this,
+                                        new String[]{Manifest.permission.CAMERA},
+                                        CAMERA_PERMISSION
+                                );
+                            }
+
+                            startActivityForResult(chooser, FILE_CHOOSER);
+                        }
+
+                        private Intent criarCamera() {
+                            Intent camera = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+                            if (camera.resolveActivity(getPackageManager()) == null) return null;
+
+                            try {
+                                File dir = new File(getCacheDir(), "camera");
+                                if (!dir.exists()) dir.mkdirs();
+                                File photo = File.createTempFile("ptm_", ".jpg", dir);
+
+                                cameraUri = FileProvider.getUriForFile(
+                                        this,
+                                        getPackageName() + ".fileprovider",
+                                        photo
+                                );
+
+                                camera.putExtra(MediaStore.EXTRA_OUTPUT, cameraUri);
+                                camera.addFlags(
+                                        Intent.FLAG_GRANT_WRITE_URI_PERMISSION |
+                                        Intent.FLAG_GRANT_READ_URI_PERMISSION
+                                );
+                                return camera;
+                            } catch (IOException e) {
+                                cameraUri = null;
+                                return null;
+                            }
+                        }
+
+                        @Override
+                        protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+                            super.onActivityResult(requestCode, resultCode, data);
+
+                            if (requestCode != FILE_CHOOSER || fileCallback == null) return;
+
+                            Uri[] result = null;
+
+                            if (resultCode == RESULT_OK) {
+                                if (data == null && cameraUri != null) {
+                                    result = new Uri[]{cameraUri};
+                                } else if (data != null) {
+                                    ClipData clip = data.getClipData();
+
+                                    if (clip != null) {
+                                        result = new Uri[clip.getItemCount()];
+                                        for (int i = 0; i < clip.getItemCount(); i++) {
+                                            result[i] = clip.getItemAt(i).getUri();
+                                        }
+                                    } else if (data.getData() != null) {
+                                        result = new Uri[]{data.getData()};
+                                    }
+                                }
+                            }
+
+                            fileCallback.onReceiveValue(result);
+                            fileCallback = null;
+                            cameraUri = null;
+                        }
+
+                        @Override
+                        public void onBackPressed() {
+                            if (webView.canGoBack()) webView.goBack();
+                            else super.onBackPressed();
+                        }
+                    }
+                    EOF
+                    mkdir -p "$(dirname 'app/src/main/assets/ptm.html')"
+                    cat > 'app/src/main/assets/ptm.html' <<'EOF'
+                    <!doctype html>
+                    <html lang="pt-PT">
+                    <head>
+                    <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+                    <title>PTM Travessias</title>
+                    <style>
+                    *{box-sizing:border-box}body{margin:0;background:#eef2f5;font-family:Arial,sans-serif;color:#24323a}
+                    header{background:#334b59;color:#fff;padding:16px 14px}header h1{margin:0;font-size:22px}header small{display:block;margin-top:4px;color:#dce6eb}
+                    main{max-width:920px;margin:auto;padding:12px}.card{background:#fff;border:1px solid #ccd6dc;border-radius:12px;margin:12px 0;overflow:hidden}
+                    .card h2{margin:0;padding:12px;background:#e9eff3;font-size:18px}.inside{padding:12px}
+                    .drop{display:block;border:2px dashed #9fb0b9;border-radius:10px;padding:24px 14px;text-align:center;background:#fafcfd}
+                    .drop input{display:none}.drop strong{display:block;font-size:18px;margin-bottom:6px}.hint{font-size:13px;color:#667780;line-height:1.45}
+                    .photosgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:10px}
+                    .photo{border:1px solid #d9e0e4;border-radius:10px;padding:9px;background:#fff}
+                    .photo img{width:100%;height:150px;object-fit:cover;border-radius:7px;display:block}
+                    .name{font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin:7px 0}
+                    .phase-label{font-size:12px;font-weight:bold;margin:5px 0;color:#42535c}
+                    .photo-actions{display:grid;grid-template-columns:1fr 40px;gap:7px;align-items:center}
+                    @media(max-width:560px){.photosgrid{grid-template-columns:1fr 1fr}.photo img{height:120px}}
+                    select,button{font-size:14px;border:1px solid #aebbc3;border-radius:8px;background:white;padding:10px}select{width:100%}
+                    .primary{width:100%;margin-top:12px;background:#1976b9;color:#fff;border-color:#1976b9;font-weight:bold;font-size:17px}.primary:disabled{opacity:.55}
+                    .status{font-size:13px;margin-top:10px;line-height:1.45;color:#667780}.ok{color:#2a7549}.err{color:#a63232}.result{display:none}.result.show{display:block}
+                    .tablewrap{overflow:auto}table{width:100%;border-collapse:collapse;min-width:1120px}th,td{border:1px solid #dbe2e6;padding:8px;font-size:12px;vertical-align:top}
+                    th{background:#f3f6f8;text-align:left}td.value{font-weight:600}td.empty{color:#9aa5ab}.copy{padding:6px 8px;margin-top:5px}
+                    .evidence{font-size:10px;color:#708089;margin-top:4px;font-weight:400}.raw{white-space:pre-wrap;font-family:monospace;font-size:11px;background:#f8fafb;border-radius:8px;padding:10px;max-height:300px;overflow:auto}
+                    .note{background:#fff7dc;border:1px solid #e4d187;padding:9px;border-radius:7px;font-size:12px;margin-top:10px}
+                    </style></head>
+                    <body>
+                    <header><h1>⚡ PTM Travessias</h1><small>Auxiliar para preencher apenas as 4 linhas das travessias A/B/C/N</small></header>
+                    <main>
+                    <section class="card"><h2>📸 Fotografias das travessias</h2><div class="inside">
+                    <label class="drop"><strong>Carregar fotografias</strong><span class="hint">Carrega as chapas das travessias e indica A, B, C ou N em cada fotografia.</span><input id="files" type="file" accept="image/*" multiple></label>
+                    <div id="photos" class="photosgrid"></div><button id="analyze" class="primary">Ler travessias</button><div id="status" class="status">Ainda não foram carregadas fotografias.</div>
+                    <div class="note">Só são preenchidos valores realmente identificados na chapa. O que não estiver indicado fica vazio.</div>
+                    </div></section>
+                    <section id="result" class="card result"><h2>📋 4 linhas para copiar para o PTM</h2><div class="tablewrap"><table>
+                    <thead><tr><th>Travessia</th><th>Fabricante</th><th>N.º de série</th><th>Nível de isolam. LL (BIL)</th><th>Tensão Fase-Terra</th><th>Tensão máx. do sistema</th><th>Corrente nominal</th><th>FD (C1)</th><th>Cap. (C1)</th><th>FD (C2)</th><th>Cap. (C2)</th></tr></thead>
+                    <tbody id="tbody"></tbody></table></div></section>
+                    <section id="rawCard" class="card result"><h2>🔎 Resposta técnica da leitura</h2><div id="raw" class="inside"></div></section>
+                    </main>
+                    <script>
+                    const WORKER="https://ptm-analise.rdgsantos1987-rs.workers.dev/analisar";
+                    let items=[]; const $=s=>document.querySelector(s);
+                    const esc=v=>String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+                    $("#files").onchange=e=>{items=[...e.target.files].map((f,i)=>({file:f,fase:["A","B","C","N"][i]||"A"}));renderPhotos()};
+                    function renderPhotos(){
+                     $("#photos").innerHTML=items.map((o,i)=>`<div class="photo">
+                       <img id="img${i}">
+                       <div class="name">${esc(o.file.name)}</div>
+                       <div class="phase-label">Identificar esta fotografia:</div>
+                       <div class="photo-actions">
+                         <select data-i="${i}">${["A","B","C","N"].map(p=>`<option value="${p}" ${o.fase===p?"selected":""}>Travessia ${p}</option>`).join("")}</select>
+                         <button data-r="${i}" title="Remover fotografia">✕</button>
+                       </div>
+                     </div>`).join("");
+                     items.forEach((o,i)=>$("#img"+i).src=URL.createObjectURL(o.file));
+                     document.querySelectorAll("select[data-i]").forEach(s=>s.onchange=()=>items[+s.dataset.i].fase=s.value);
+                     document.querySelectorAll("button[data-r]").forEach(b=>b.onclick=()=>{items.splice(+b.dataset.r,1);renderPhotos()});
+                     $("#status").textContent=items.length?`${items.length} fotografia(s) selecionada(s).`:"Ainda não foram carregadas fotografias.";
+                    }
+                    function fileToDataURL(file){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(file)})}
+                    function cell(obj,key){const v=(obj&&obj[key])||"";const ev=(obj&&obj.evidencias&&obj.evidencias[key])||"";return `<td class="${v?"value":"empty"}">${v?esc(v):"Não indicado"}${ev?`<div class="evidence">${esc(ev)}</div>`:""}${v?`<button class="copy" data-copy="${esc(v)}">📋</button>`:""}</td>`}
+                    function render(data){
+                     const fases={A:{},B:{},C:{},N:{}};(data.resultados||[]).forEach(r=>{if(r?.resultado&&["A","B","C","N"].includes(r.fase))fases[r.fase]=r.resultado});
+                     $("#tbody").innerHTML=["A","B","C","N"].map(p=>{const x=fases[p]||{};return `<tr><th>${p}</th>${cell(x,"fabricante")}${cell(x,"numero_serie")}${cell(x,"bil")}${cell(x,"tensao_fase_terra")}${cell(x,"tensao_max_sistema")}${cell(x,"corrente_nominal")}${cell(x,"fd_c1")}${cell(x,"c1_pf")}${cell(x,"fd_c2")}${cell(x,"c2_pf")}</tr>`}).join("");
+                     document.querySelectorAll(".copy").forEach(b=>b.onclick=async()=>{try{await navigator.clipboard.writeText(b.dataset.copy||"")}catch{}b.textContent="✓"});
+                     $("#result").classList.add("show");
+                    }
+                    $("#analyze").onclick=async()=>{
+                     if(!items.length){$("#status").innerHTML='<span class="err">Carrega pelo menos uma fotografia.</span>';return}
+                     const btn=$("#analyze");btn.disabled=true;btn.textContent="A ler…";$("#status").textContent="A analisar as chapas…";
+                     try{
+                      const images=[];for(const o of items)images.push({name:o.file.name,fase:o.fase,image:await fileToDataURL(o.file)});
+                      const response=await fetch(WORKER,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({images})});
+                      const text=await response.text();let data;try{data=JSON.parse(text)}catch{throw new Error("Resposta inválida do serviço de leitura.")}
+                      $("#raw").innerHTML=`<div class="raw">${esc(JSON.stringify(data,null,2))}</div>`;$("#rawCard").classList.add("show");
+                      if(!response.ok||!data.ok)throw new Error(data.erro||"Falha na leitura.");render(data);
+                      $("#status").innerHTML='<span class="ok">✓ Leitura concluída. Confirma os valores antes de copiar para o PTM.</span>';
+                     }catch(e){$("#status").innerHTML=`<span class="err">Erro: ${esc(e.message)}</span>`}
+                     finally{btn.disabled=false;btn.textContent="Ler travessias"}
+                    };
+                    </script></body></html>
+                    EOF
+
+      - name: Criar APK
+        run: gradle :app:assembleDebug --no-daemon
+
+      - name: Guardar APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Ferramentas-Tecnicas-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
